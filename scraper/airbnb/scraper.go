@@ -116,27 +116,91 @@ func (s *Scraper) GetPropertyURLsFromSection(sectionURL string) ([]string, error
 	defer cancel()
 
 	var urls []string
+	seen := make(map[string]bool)
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(sectionURL),
 		utils.HideWebDriver(),
 		chromedp.WaitVisible(`[data-testid="listing-card-title"]`, chromedp.ByQuery),
 		chromedp.Sleep(3*time.Second),
-
-		chromedp.Evaluate(`
-			Array.from(document.querySelectorAll('[data-testid="listing-card-title"]'))
-				.slice(0, 3)
-				.map(titleEl => {
-					let card = titleEl.parentElement.parentElement.parentElement;
-					let linkEl = card.querySelector('a.l1ovpqvx');
-					return linkEl ? linkEl.href : '';
-				})
-				.filter(u => u !== '')
-		`, &urls),
 	)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get property URLs: %w", err)
+	}
+
+	extractTopTwo := func() ([]string, error) {
+		var pageURLs []string
+		err := chromedp.Run(ctx, chromedp.Evaluate(`
+			Array.from(document.querySelectorAll('[data-testid="listing-card-title"]'))
+				.slice(0, 2)
+				.map(titleEl => {
+					const card = titleEl.closest('div[itemprop="itemListElement"]') || titleEl.closest('div');
+					if (!card) return '';
+					const linkEl = card.querySelector('a[href*="/rooms/"]');
+					if (!linkEl) return '';
+					const href = linkEl.getAttribute('href') || '';
+					return href.startsWith('/') ? 'https://www.airbnb.com' + href : href;
+				})
+				.filter(u => u !== '')
+		`, &pageURLs))
+		return pageURLs, err
+	}
+
+	addUnique := func(candidates []string) {
+		for _, u := range candidates {
+			if !seen[u] {
+				seen[u] = true
+				urls = append(urls, u)
+			}
+		}
+	}
+
+	page1URLs, err := extractTopTwo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse page 1 property URLs: %w", err)
+	}
+	addUnique(page1URLs)
+
+	var movedToPage2 bool
+	err = chromedp.Run(ctx,
+		chromedp.Evaluate(`(() => {
+			const selectors = [
+				'a[aria-label*="Next"]',
+				'button[aria-label*="Next"]',
+				'a[aria-label*="next"]',
+				'button[aria-label*="next"]'
+			];
+			for (const sel of selectors) {
+				const el = document.querySelector(sel);
+				if (el) {
+					el.click();
+					return true;
+				}
+			}
+			return false;
+		})()`, &movedToPage2),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to move to page 2: %w", err)
+	}
+
+	if movedToPage2 {
+		err = chromedp.Run(ctx,
+			chromedp.Sleep(4*time.Second),
+			chromedp.WaitVisible(`[data-testid="listing-card-title"]`, chromedp.ByQuery),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("page 2 did not load: %w", err)
+		}
+
+		page2URLs, err := extractTopTwo()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse page 2 property URLs: %w", err)
+		}
+		addUnique(page2URLs)
+	} else {
+		utils.Warn("Could not find Next button for section pagination; using only page 1")
 	}
 
 	utils.Success("Got %d property URLs from section", len(urls))
