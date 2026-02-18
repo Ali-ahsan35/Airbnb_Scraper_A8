@@ -125,7 +125,7 @@ func (s *Scraper) GetPropertyURLsFromSection(sectionURL string) ([]string, error
 
 		chromedp.Evaluate(`
 			Array.from(document.querySelectorAll('[data-testid="listing-card-title"]'))
-				.slice(0, 5)
+				.slice(0, 3)
 				.map(titleEl => {
 					let card = titleEl.parentElement.parentElement.parentElement;
 					let linkEl = card.querySelector('a.l1ovpqvx');

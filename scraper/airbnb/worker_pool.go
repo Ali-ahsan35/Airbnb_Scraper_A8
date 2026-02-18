@@ -38,7 +38,7 @@ func (p *WorkerPool) Run() []models.Listing {
 
 	utils.Section("Step 2: Getting Property URLs from Each Section")
 
-	var allPropertyURLs []string
+	var allListings []models.Listing
 
 	for pageNum := 1; pageNum <= p.cfg.MaxPages; pageNum++ {
 		sectionURL := sectionURLs[pageNum-1]
@@ -51,19 +51,22 @@ func (p *WorkerPool) Run() []models.Listing {
 		}
 
 		utils.Info("Page %d → got %d property URLs", pageNum, len(propertyURLs))
-		allPropertyURLs = append(allPropertyURLs, propertyURLs...)
+		if len(propertyURLs) == 0 {
+			continue
+		}
+
+		utils.Section("Step 3: Visiting Property Pages for Section")
+		sectionListings := p.scrapeProperties(propertyURLs)
+		allListings = append(allListings, sectionListings...)
 	}
 
-	if len(allPropertyURLs) == 0 {
-		utils.Error("No property URLs collected")
+	if len(allListings) == 0 {
+		utils.Error("No listings scraped from any section")
 		return nil
 	}
 
-	utils.Success("Total property URLs collected: %d", len(allPropertyURLs))
-
-	utils.Section("Step 3: Visiting Each Property Page")
-
-	return p.scrapeProperties(allPropertyURLs)
+	utils.Success("Total listings scraped from all sections: %d", len(allListings))
+	return allListings
 }
 
 func (p *WorkerPool) scrapeProperties(propertyURLs []string) []models.Listing {

@@ -17,8 +17,8 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		BaseURL:        "https://www.airbnb.com/",
-		MaxPages:       2,
-		MaxWorkers:     2,
+		MaxPages:       9,
+		MaxWorkers:     1,
 		RequestTimeout: 60 * time.Second,
 		MinDelay:       3 * time.Second,
 		MaxDelay:       7 * time.Second,
