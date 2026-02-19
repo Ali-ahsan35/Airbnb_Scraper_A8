@@ -18,12 +18,12 @@ func DefaultConfig() *Config {
 	return &Config{
 		BaseURL:        "https://www.airbnb.com/",
 		MaxPages:       9,
-		MaxWorkers:     1,
+		MaxWorkers:     3,
 		RequestTimeout: 60 * time.Second,
 		MinDelay:       3 * time.Second,
 		MaxDelay:       7 * time.Second,
 		MaxRetries:     3,
-		Headless:       false,
+		Headless:       true,
 		CSVPath:        "output/listings.csv",
 	}
 }
