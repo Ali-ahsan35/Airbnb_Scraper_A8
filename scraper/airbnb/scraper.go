@@ -254,7 +254,32 @@ func (s *Scraper) extractFromPropertyPage(propertyURL string) (models.Listing, e
 		`, &title),
 
 		chromedp.Evaluate(`
-			document.querySelector('.u174bpcy')?.textContent.trim() || ''
+			(() => {
+				const firstMoney = (txt) => {
+					if (!txt) return '';
+					const m = txt.match(/\$?\s*([0-9][0-9,]*(?:\.[0-9]+)?)/);
+					return m ? ('$' + m[1]) : '';
+				};
+
+				// Preferred: aria-label often contains total like "$172 for 2 nights, originally $205"
+				const ariaPrice = Array.from(document.querySelectorAll('[aria-label]')).find(el =>
+					/\$\s*[0-9]/.test(el.getAttribute('aria-label') || '') &&
+					/for\s+[0-9]+\s+nights?/i.test(el.getAttribute('aria-label') || '')
+				);
+				const fromAria = firstMoney(ariaPrice ? ariaPrice.getAttribute('aria-label') : '');
+				if (fromAria) return fromAria;
+
+				// Alternative visible current total in discounted layouts
+				const visibleTotal = document.querySelector('span.u1opajno');
+				const fromVisibleTotal = firstMoney(visibleTotal ? visibleTotal.textContent : '');
+				if (fromVisibleTotal) return fromVisibleTotal;
+
+				// Existing layout fallback
+				const fromOld = firstMoney(document.querySelector('.u174bpcy')?.textContent || '');
+				if (fromOld) return fromOld;
+
+				return '';
+			})()
 		`, &price),
 
 		chromedp.Evaluate(`
