@@ -41,16 +41,15 @@ func (s *Scraper) Close() {
 	s.allocCancel()
 }
 
-func (s *Scraper) isSeen(url string) bool {
+func (s *Scraper) markSeenIfNew(url string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.seenURLs[url]
-}
 
-func (s *Scraper) markSeen(url string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if s.seenURLs[url] {
+		return false
+	}
 	s.seenURLs[url] = true
+	return true
 }
 
 func (s *Scraper) GetSectionURLs() ([]string, error) {
@@ -208,7 +207,7 @@ func (s *Scraper) GetPropertyURLsFromSection(sectionURL string) ([]string, error
 }
 
 func (s *Scraper) ScrapePropertyPage(propertyURL string) (models.Listing, error) {
-	if s.isSeen(propertyURL) {
+	if !s.markSeenIfNew(propertyURL) {
 		return models.Listing{}, nil
 	}
 
@@ -224,10 +223,12 @@ func (s *Scraper) ScrapePropertyPage(propertyURL string) (models.Listing, error)
 	})
 
 	if err != nil {
+		s.mu.Lock()
+		delete(s.seenURLs, propertyURL)
+		s.mu.Unlock()
 		return models.Listing{}, err
 	}
 
-	s.markSeen(propertyURL)
 	utils.Success("✓ %s | $%.0f | %.2f★", truncate(listing.Title, 30), listing.Price, listing.Rating)
 	return listing, nil
 }
