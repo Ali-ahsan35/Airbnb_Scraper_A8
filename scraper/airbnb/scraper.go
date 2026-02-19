@@ -62,23 +62,17 @@ func (s *Scraper) GetSectionURLs() ([]string, error) {
 	defer cancel()
 
 	var hrefs []string
-	var count int
-	var pageTitle string
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(s.cfg.BaseURL),
 		utils.HideWebDriver(),
-		
-		chromedp.Title(&pageTitle),
-		
+
 		chromedp.Sleep(5*time.Second),
 		chromedp.Evaluate(`window.scrollTo(0, 800)`, nil),
 		chromedp.Sleep(3*time.Second),
 		chromedp.Evaluate(`window.scrollTo(0, 1600)`, nil),
 		chromedp.Sleep(5*time.Second),
-		
-		chromedp.Evaluate(`document.querySelectorAll('h2.skp76t2').length`, &count),
-		
+
 		chromedp.Evaluate(`
 			Array.from(document.querySelectorAll('h2.skp76t2 a'))
 				.map(a => {
@@ -93,10 +87,6 @@ func (s *Scraper) GetSectionURLs() ([]string, error) {
 		return nil, fmt.Errorf("homepage error: %w", err)
 	}
 
-	utils.Info("Page title: '%s'", pageTitle)
-	utils.Info("Found %d h2.skp76t2 elements on page", count)
-	utils.Info("Extracted %d hrefs from h2.skp76t2 a", len(hrefs))
-
 	if len(hrefs) == 0 {
 		return nil, fmt.Errorf("no section URLs found")
 	}
@@ -106,8 +96,6 @@ func (s *Scraper) GetSectionURLs() ([]string, error) {
 }
 
 func (s *Scraper) GetPropertyURLsFromSection(sectionURL string) ([]string, error) {
-	utils.Info("Getting property URLs from section: %s", sectionURL[:min(60, len(sectionURL))])
-
 	tabCtx, tabCancel := chromedp.NewContext(s.allocCtx)
 	defer tabCancel()
 
@@ -132,7 +120,7 @@ func (s *Scraper) GetPropertyURLsFromSection(sectionURL string) ([]string, error
 		var pageURLs []string
 		err := chromedp.Run(ctx, chromedp.Evaluate(`
 			Array.from(document.querySelectorAll('[data-testid="listing-card-title"]'))
-				.slice(0, 2)
+				.slice(0, 5)
 				.map(titleEl => {
 					const card = titleEl.closest('div[itemprop="itemListElement"]') || titleEl.closest('div');
 					if (!card) return '';
@@ -211,7 +199,6 @@ func (s *Scraper) ScrapePropertyPage(propertyURL string) (models.Listing, error)
 		return models.Listing{}, nil
 	}
 
-	utils.Info("Visiting property: %s", propertyURL[:min(70, len(propertyURL))])
 	utils.RandomDelay(s.cfg.MinDelay, s.cfg.MaxDelay)
 
 	var listing models.Listing
@@ -261,7 +248,6 @@ func (s *Scraper) extractFromPropertyPage(propertyURL string) (models.Listing, e
 					return m ? ('$' + m[1]) : '';
 				};
 
-				// Preferred: aria-label often contains total like "$172 for 2 nights, originally $205"
 				const ariaPrice = Array.from(document.querySelectorAll('[aria-label]')).find(el =>
 					/\$\s*[0-9]/.test(el.getAttribute('aria-label') || '') &&
 					/for\s+[0-9]+\s+nights?/i.test(el.getAttribute('aria-label') || '')
@@ -269,12 +255,10 @@ func (s *Scraper) extractFromPropertyPage(propertyURL string) (models.Listing, e
 				const fromAria = firstMoney(ariaPrice ? ariaPrice.getAttribute('aria-label') : '');
 				if (fromAria) return fromAria;
 
-				// Alternative visible current total in discounted layouts
 				const visibleTotal = document.querySelector('span.u1opajno');
 				const fromVisibleTotal = firstMoney(visibleTotal ? visibleTotal.textContent : '');
 				if (fromVisibleTotal) return fromVisibleTotal;
 
-				// Existing layout fallback
 				const fromOld = firstMoney(document.querySelector('.u174bpcy')?.textContent || '');
 				if (fromOld) return fromOld;
 
@@ -300,7 +284,6 @@ func (s *Scraper) extractFromPropertyPage(propertyURL string) (models.Listing, e
 					return m ? m[1] : '';
 				};
 
-				// Primary location used by many Airbnb PDP layouts
 				const banner = document.querySelector('[data-testid="pdp-reviews-highlight-banner-host-rating"]');
 				if (banner) {
 					const ratingDiv = banner.querySelector('div[aria-hidden="true"]');
@@ -308,14 +291,12 @@ func (s *Scraper) extractFromPropertyPage(propertyURL string) (models.Listing, e
 					if (fromBanner) return fromBanner;
 				}
 
-				// Alternative location: screen-reader text like "Rated 4.81 out of 5 stars."
 				const ratedTextEl = Array.from(document.querySelectorAll('span')).find(el =>
 					/Rated\s+[0-9]+(?:\.[0-9]+)?\s+out of 5 stars\./i.test(el.textContent || '')
 				);
 				const fromRatedText = normalize(ratedTextEl ? ratedTextEl.textContent.trim() : '');
 				if (fromRatedText) return fromRatedText;
 
-				// Alternative visual element that often holds the numeric rating
 				const altDiv = document.querySelector('div.rmtgcc3[aria-hidden="true"]');
 				const fromAltDiv = normalize(altDiv ? altDiv.textContent.trim() : '');
 				if (fromAltDiv) return fromAltDiv;
@@ -328,21 +309,18 @@ func (s *Scraper) extractFromPropertyPage(propertyURL string) (models.Listing, e
 			(() => {
 				const clean = (txt) => (txt || '').replace(/\s+/g, ' ').trim();
 
-				// Preferred source from DESCRIPTION_DEFAULT block
 				const preferred = document.querySelector(
 					'[data-section-id="DESCRIPTION_DEFAULT"] span.l1h825yc, [data-plugin-in-point-id="DESCRIPTION_DEFAULT"] span.l1h825yc'
 				);
 				const fromPreferred = clean(preferred ? (preferred.innerText || preferred.textContent) : '');
 				if (fromPreferred) return fromPreferred;
 
-				// Fallback to section container text
 				const section = document.querySelector(
 					'[data-section-id="DESCRIPTION_DEFAULT"], [data-plugin-in-point-id="DESCRIPTION_DEFAULT"]'
 				);
 				const fromSection = clean(section ? (section.innerText || section.textContent) : '');
 				if (fromSection) return fromSection;
 
-				// Legacy fallback selector
 				return clean(document.querySelector('[data-testid="listing-page-summary"]')?.textContent || '');
 			})()
 		`, &description),
@@ -388,10 +366,11 @@ func parseRating(raw string) float64 {
 }
 
 func truncate(s string, max int) string {
-	if len(s) <= max {
+	runes := []rune(s)
+	if len(runes) <= max {
 		return s
 	}
-	return s[:max] + "..."
+	return string(runes[:max]) + "..."
 }
 
 func min(a, b int) int {

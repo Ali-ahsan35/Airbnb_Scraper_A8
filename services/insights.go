@@ -22,7 +22,7 @@ type Report struct {
 
 // GenerateReport cleans the dataset and computes all assignment insights.
 func GenerateReport(listings []models.Listing) Report {
-	cleaned := cleanListings(listings)
+	cleaned := CleanListings(listings)
 
 	report := Report{
 		TotalListings:       len(cleaned),
@@ -97,33 +97,48 @@ func GenerateReport(listings []models.Listing) Report {
 
 func PrintReport(report Report) {
 	fmt.Println()
-	fmt.Println("Vacation Rental Market Insights")
-	fmt.Printf("Total Listings Scraped: %d\n", report.TotalListings)
-	fmt.Printf("Airbnb Listings: %d\n", report.AirbnbListings)
-	fmt.Printf("Average Price: %.2f\n", report.AveragePrice)
-	fmt.Printf("Minimum Price: %.2f\n", report.MinPrice)
-	fmt.Printf("Maximum Price: %.2f\n", report.MaxPrice)
+	fmt.Println("┌──────────────────────────────────────────────────────────────┐")
+	fmt.Println("│                  Vacation Rental Market Insights             │")
+	fmt.Println("├───────────────────────────────┬──────────────────────────────┤")
+	fmt.Printf("│ %-29s │ %-28d │\n", "Total Listings Scraped", report.TotalListings)
+	fmt.Printf("│ %-29s │ %-28d │\n", "Airbnb Listings", report.AirbnbListings)
+	fmt.Printf("│ %-29s │ %-28.2f │\n", "Average Price", report.AveragePrice)
+	fmt.Printf("│ %-29s │ %-28.2f │\n", "Minimum Price", report.MinPrice)
+	fmt.Printf("│ %-29s │ %-28.2f │\n", "Maximum Price", report.MaxPrice)
+	fmt.Println("└───────────────────────────────┴──────────────────────────────┘")
 
 	if report.MostExpensive.Title != "" {
-		fmt.Println("Most Expensive Property:")
+		fmt.Println()
+		fmt.Println("┌──────────────────────────────────────────────────────────────┐")
+		fmt.Println("│                    Most Expensive Property                   │")
+		fmt.Println("├───────────────────────────────┬──────────────────────────────┤")
+		fmt.Printf("│ %-29s │ %-28.2f │\n", "Price", report.MostExpensive.Price)
+		fmt.Printf("│ %-29s │ %-28s │\n", "Location", normalizeLocation(report.MostExpensive.Location))
+		fmt.Println("└───────────────────────────────┴──────────────────────────────┘")
 		fmt.Printf("Title: %s\n", report.MostExpensive.Title)
-		fmt.Printf("Price: %.2f\n", report.MostExpensive.Price)
-		fmt.Printf("Location: %s\n", normalizeLocation(report.MostExpensive.Location))
 	}
 
-	fmt.Println("Listings per Location:")
+	fmt.Println()
+	fmt.Println("┌──────────────────────────────────────────────┬───────────────┐")
+	fmt.Println("│ Listings per Location                        │ Count         │")
+	fmt.Println("├──────────────────────────────────────────────┼───────────────┤")
 	locations := sortedLocations(report.ListingsByLocation)
 	for _, loc := range locations {
-		fmt.Printf("%s: %d\n", loc, report.ListingsByLocation[loc])
+		fmt.Printf("│ %-44s │ %-13d │\n", loc, report.ListingsByLocation[loc])
 	}
+	fmt.Println("└──────────────────────────────────────────────┴───────────────┘")
 
-	fmt.Println("Top 5 Highest Rated Properties:")
+	fmt.Println()
+	fmt.Println("┌─────┬──────────────────────────────────────────────┬──────────┐")
+	fmt.Println("│ #   │ Top 5 Highest Rated Properties               │ Rating   │")
+	fmt.Println("├─────┼──────────────────────────────────────────────┼──────────┤")
 	for i, l := range report.TopRated {
-		fmt.Printf("%d. %s — %.2f\n", i+1, l.Title, l.Rating)
+		fmt.Printf("│ %-3d │ %-44s │ %-8.2f │\n", i+1, truncateText(l.Title, 44), l.Rating)
 	}
+	fmt.Println("└─────┴──────────────────────────────────────────────┴──────────┘")
 }
 
-func cleanListings(listings []models.Listing) []models.Listing {
+func CleanListings(listings []models.Listing) []models.Listing {
 	seen := make(map[string]bool)
 	cleaned := make([]models.Listing, 0, len(listings))
 
@@ -163,4 +178,14 @@ func sortedLocations(m map[string]int) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func truncateText(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	if max <= 3 {
+		return s[:max]
+	}
+	return s[:max-3] + "..."
 }

@@ -1,0 +1,19 @@
+# Binaries
+airbnb-scraper
+*.exe
+*.out
+
+# Environment files
+.env
+
+# Generated output
+output/*.csv
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store

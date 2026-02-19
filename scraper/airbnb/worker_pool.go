@@ -42,7 +42,6 @@ func (p *WorkerPool) Run() []models.Listing {
 
 	for pageNum := 1; pageNum <= p.cfg.MaxPages; pageNum++ {
 		sectionURL := sectionURLs[pageNum-1]
-		utils.Info("Page %d → visiting section %d", pageNum, pageNum)
 
 		propertyURLs, err := p.scraper.GetPropertyURLsFromSection(sectionURL)
 		if err != nil {
@@ -50,7 +49,6 @@ func (p *WorkerPool) Run() []models.Listing {
 			continue
 		}
 
-		utils.Info("Page %d → got %d property URLs", pageNum, len(propertyURLs))
 		if len(propertyURLs) == 0 {
 			continue
 		}
@@ -98,7 +96,6 @@ func (p *WorkerPool) scrapeProperties(propertyURLs []string) []models.Listing {
 
 func (p *WorkerPool) worker(id int) {
 	defer p.wg.Done()
-	utils.Info("Worker %d started", id)
 
 	for propertyURL := range p.jobs {
 		listing, err := p.scraper.ScrapePropertyPage(propertyURL)
@@ -108,8 +105,6 @@ func (p *WorkerPool) worker(id int) {
 			Error:    err,
 		}
 	}
-
-	utils.Info("Worker %d done", id)
 }
 
 func (p *WorkerPool) collect() []models.Listing {
@@ -128,6 +123,6 @@ func (p *WorkerPool) collect() []models.Listing {
 	}
 
 	utils.Section("Collection Complete")
-	utils.Info("Total properties scraped: %d | Failed: %d", len(all), failed)
+	utils.Success("Properties scraped: %d | Failed: %d", len(all), failed)
 	return all
 }
