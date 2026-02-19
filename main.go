@@ -4,6 +4,7 @@ import (
 	"airbnb-scraper/config"
 	"airbnb-scraper/models"
 	"airbnb-scraper/scraper/airbnb"
+	"airbnb-scraper/services"
 	"airbnb-scraper/storage"
 	"airbnb-scraper/utils"
 	"fmt"
@@ -39,6 +40,8 @@ func main() {
 	}
 
 	printSummary(listings)
+	report := services.GenerateReport(listings)
+	services.PrintReport(report)
 }
 
 func printSummary(listings []models.Listing) {
