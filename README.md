@@ -59,6 +59,7 @@ airbnb-scraper/
 ├── go.mod                          # Go module and dependency definitions
 ├── go.sum                          # Dependency checksums
 ├── docker-compose.yml              # Local PostgreSQL service (port 5433)
+├── run_project.sh                  # One-command runner (starts DB, waits healthy, runs scraper)
 ├── README.md                       # Project documentation
 │
 ├── config/
@@ -111,23 +112,33 @@ git clone https://github.com/Ali-ahsan35/Airbnb_Scraper_A8.git
 cd Airbnb_Scraper_A8
 ```
 
-### 2. Start PostgreSQL
+### 2. Run with one command (recommended)
+
+```bash
+chmod +x run_project.sh
+./run_project.sh
+```
+
+`run_project.sh` does the following:
+
+1. starts PostgreSQL using Docker Compose
+2. waits until container health is `healthy`
+3. runs `go run main.go`
+
+### 3. Manual run (alternative)
+
+If you prefer manual control, use:
 
 ```bash
 docker compose up -d
 docker compose ps
+go run main.go
 ```
 
-Expected container:
+Expected PostgreSQL container:
 
 - `airbnb-scraper-postgres`
 - port mapping: `5433 -> 5432`
-
-### 3. Run scraper
-
-```bash
-go run main.go
-```
 
 This will:
 
@@ -135,6 +146,12 @@ This will:
 - write CSV to `output/listings.csv`
 - insert cleaned records into PostgreSQL database `airbnb_scraper`
 - print insight tables in terminal
+
+### 4. Stop services when done
+
+```bash
+docker compose down
+```
 
 ## Database Access and Verification
 
