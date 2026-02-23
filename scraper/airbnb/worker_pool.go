@@ -23,7 +23,7 @@ func NewWorkerPool(scraper *Scraper, cfg *config.Config) *WorkerPool {
 }
 
 func (p *WorkerPool) Run() []models.Listing {
-	utils.Section("Step 1: Getting Section URLs")
+	utils.Info("Collecting section URLs")
 
 	sectionURLs, err := p.scraper.GetSectionURLs()
 	if err != nil {
@@ -36,7 +36,7 @@ func (p *WorkerPool) Run() []models.Listing {
 		p.cfg.MaxPages = len(sectionURLs)
 	}
 
-	utils.Section("Step 2: Getting Property URLs from Each Section")
+	utils.Info("Processing up to %d sections", p.cfg.MaxPages)
 
 	var allListings []models.Listing
 
@@ -53,7 +53,7 @@ func (p *WorkerPool) Run() []models.Listing {
 			continue
 		}
 
-		utils.Section("Step 3: Visiting Property Pages for Section")
+		utils.Info("Scraping property details for section %d", pageNum)
 		sectionListings := p.scrapeProperties(propertyURLs)
 		allListings = append(allListings, sectionListings...)
 	}
@@ -122,7 +122,6 @@ func (p *WorkerPool) collect() []models.Listing {
 		}
 	}
 
-	utils.Section("Collection Complete")
 	utils.Success("Properties scraped: %d | Failed: %d", len(all), failed)
 	return all
 }

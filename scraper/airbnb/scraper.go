@@ -66,21 +66,39 @@ func (s *Scraper) GetSectionURLs() ([]string, error) {
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(s.cfg.BaseURL),
 		utils.HideWebDriver(),
-
 		chromedp.Sleep(5*time.Second),
-		chromedp.Evaluate(`window.scrollTo(0, 800)`, nil),
+		chromedp.Evaluate(`window.scrollTo(0, document.body.scrollHeight * 0.35)`, nil),
 		chromedp.Sleep(3*time.Second),
-		chromedp.Evaluate(`window.scrollTo(0, 1600)`, nil),
-		chromedp.Sleep(5*time.Second),
+		chromedp.Evaluate(`window.scrollTo(0, document.body.scrollHeight * 0.7)`, nil),
+		chromedp.Sleep(4*time.Second),
+		chromedp.Evaluate(`(() => {
+			const toAbs = (href) => {
+				if (!href) return '';
+				if (href.startsWith('http')) return href;
+				if (href.startsWith('/')) return 'https://www.airbnb.com' + href;
+				return '';
+			};
 
-		chromedp.Evaluate(`
-			Array.from(document.querySelectorAll('h2.skp76t2 a'))
-				.map(a => {
-					let href = a.getAttribute('href');
-					return href && href.startsWith('/') ? 'https://www.airbnb.com' + href : (href || '');
-				})
-				.filter(u => u !== '')
-		`, &hrefs),
+			// Prefer destination/search section links (e.g. /s/City/homes?...).
+			const candidates = Array.from(document.querySelectorAll('a[href*="/s/"]'))
+				.map(a => toAbs(a.getAttribute('href')))
+				.filter(u =>
+					u.includes('/s/') &&
+					(u.includes('/homes') || u.includes('search_mode=')) &&
+					!u.includes('/rooms/')
+				);
+
+			// Stable unique list while preserving order.
+			const seen = new Set();
+			const unique = [];
+			for (const u of candidates) {
+				if (!seen.has(u)) {
+					seen.add(u);
+					unique.push(u);
+				}
+			}
+			return unique;
+		})()`, &hrefs),
 	)
 
 	if err != nil {

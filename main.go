@@ -12,10 +12,8 @@ import (
 )
 
 func main() {
-	utils.Section("Airbnb Scraper — Day 1")
-
 	cfg := config.DefaultConfig()
-	utils.Info("Pages: %d  |  Workers: %d  |  Delay: %v-%v",
+	utils.Info("Scraper starting | pages=%d workers=%d delay=%v-%v",
 		cfg.MaxPages, cfg.MaxWorkers, cfg.MinDelay, cfg.MaxDelay)
 
 	scraper, err := airbnb.NewScraper(cfg)
